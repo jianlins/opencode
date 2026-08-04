@@ -1,5 +1,5 @@
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
-import { and, eq, or, sql } from "drizzle-orm"
+import { and, eq, sql } from "drizzle-orm"
 import { Database } from "@opencode-ai/core/database/database"
 import { ProjectDirectoryTable, ProjectTable } from "@opencode-ai/core/project/sql"
 import { ProjectDirectories } from "@opencode-ai/core/project/directories"
@@ -21,7 +21,7 @@ import { serviceUse } from "@opencode-ai/core/effect/service-use"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { EventV2 } from "@opencode-ai/core/event"
-import { realpathSync } from "fs"
+import { directoryMatchCondition } from "@/session/session"
 import { Project } from "@opencode-ai/schema/project"
 
 export const Info = Project.Info
@@ -290,21 +290,10 @@ const layer = Layer.effect(
         .pipe(Effect.orDie)
 
       if (projectID !== ProjectV2.ID.global) {
-        const dirs = [data.directory]
-        if (process.platform === "win32") {
-          try {
-            const real = realpathSync(data.directory)
-            if (real !== data.directory && !dirs.includes(real)) dirs.push(real)
-          } catch {}
-        }
-        const dirCondition =
-          dirs.length > 1
-            ? or(...dirs.map((d) => eq(SessionTable.directory, d)))!
-            : eq(SessionTable.directory, data.directory)
         yield* db
           .update(SessionTable)
           .set({ project_id: projectID })
-          .where(and(eq(SessionTable.project_id, ProjectV2.ID.global), dirCondition))
+          .where(and(eq(SessionTable.project_id, ProjectV2.ID.global), directoryMatchCondition(data.directory)))
           .run()
           .pipe(Effect.orDie)
       }

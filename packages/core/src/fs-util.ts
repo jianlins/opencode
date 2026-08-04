@@ -225,21 +225,18 @@ export namespace FSUtil {
     return lookup(p) || "application/octet-stream"
   }
 
-  function isDriveLetterPath(p: string): boolean {
-    return p.length >= 2 && /^[A-Za-z]:/.test(p)
-  }
-
-  function isUNCPath(p: string): boolean {
-    return p.startsWith("\\\\") || p.startsWith("//")
+  // On Windows a mapped network drive (e.g. Z:) resolves via realpath to its UNC
+  // target (\\server\share); keep the drive-letter form so paths stay consistent.
+  export function keepMappedDrive(resolved: string, real: string): string {
+    if (/^[A-Za-z]:/.test(resolved) && (real.startsWith("\\\\") || real.startsWith("//"))) return resolved
+    return real
   }
 
   export function normalizePath(p: string): string {
     if (process.platform !== "win32") return p
     const resolved = pathResolve(windowsPath(p))
     try {
-      const real = realpathSync.native(resolved)
-      if (isDriveLetterPath(resolved) && isUNCPath(real)) return resolved
-      return real
+      return keepMappedDrive(resolved, realpathSync.native(resolved))
     } catch {
       return resolved
     }
@@ -257,9 +254,7 @@ export namespace FSUtil {
   export function resolve(p: string): string {
     const resolved = pathResolve(windowsPath(p))
     try {
-      const real = realpathSync(resolved)
-      if (process.platform === "win32" && isDriveLetterPath(resolved) && isUNCPath(real)) return normalizePath(resolved)
-      return normalizePath(real)
+      return normalizePath(keepMappedDrive(resolved, realpathSync(resolved)))
     } catch (e: any) {
       if (process.platform === "win32" || e?.code === "ENOENT") return normalizePath(resolved)
       throw e

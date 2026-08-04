@@ -55,7 +55,7 @@ export function isDefaultTitle(title: string) {
   ).test(title)
 }
 
-function directoryMatchCondition(directory: string): SQL {
+export function directoryMatchCondition(directory: string): SQL {
   if (process.platform !== "win32") return eq(SessionTable.directory, directory)
   const alternatives = [directory]
   try {
