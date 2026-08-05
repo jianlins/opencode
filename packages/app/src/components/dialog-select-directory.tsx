@@ -8,7 +8,14 @@ import { createMemo, createResource, createSignal } from "solid-js"
 import { useLanguage } from "@/context/language"
 import { ServerConnection } from "@/context/server"
 import { useGlobal } from "@/context/global"
-import { cleanPickerInput, createDirectorySearch, displayPickerPath } from "./directory-picker-domain"
+import {
+  cleanPickerInput,
+  createDirectorySearch,
+  displayPickerPath,
+  nativePickerPath,
+  pickerAbsoluteInput,
+  pickerRoot,
+} from "./directory-picker-domain"
 import type { Path } from "@opencode-ai/sdk/v2/client"
 
 interface DialogSelectDirectoryProps {
@@ -128,6 +135,19 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
     dialog.close()
   }
 
+  // Open a typed/pasted path directly, verifying the directory exists first.
+  async function openTypedPath(value: string) {
+    const cleaned = cleanPickerInput(value)
+    if (!cleaned) return
+    const absolute = pickerAbsoluteInput(cleaned, home(), start() ?? home())
+    const valid = await sdk.api.file
+      .list({ location: { directory: absolute } })
+      .then(() => true)
+      .catch(() => false)
+    if (!valid) return
+    resolve(nativePickerPath(absolute))
+  }
+
   return (
     <Dialog title={props.title ?? language.t("command.project.open")}>
       <List
@@ -149,6 +169,16 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
         ref={(r) => (list = r)}
         onFilter={(value) => setFilter(cleanPickerInput(value))}
         onKeyEvent={(e, item) => {
+          if (e.key === "Enter" && !e.isComposing) {
+            const target = e.target as HTMLInputElement | HTMLTextAreaElement | null
+            const value = target && "value" in target ? target.value : filter()
+            // Open a typed/pasted absolute path directly when nothing is highlighted or the input is rooted.
+            if (item && !pickerRoot(cleanPickerInput(value))) return
+            e.preventDefault()
+            e.stopPropagation()
+            void openTypedPath(value)
+            return
+          }
           if (e.key !== "Tab") return
           if (e.shiftKey) return
           if (!item) return

@@ -210,9 +210,17 @@ export function DialogSelectDirectoryV2(props: DialogSelectDirectoryV2Props) {
     ArrowDown: () => moveSuggestion(1),
     ArrowUp: () => moveSuggestion(-1),
     Enter: () => {
-      const suggestion = activeSuggestionValue()
-      if (suggestion) chooseSuggestion(suggestion)
-      if (!suggestion) void navigate(input())
+      const explicit = activeSuggestion() >= 0 ? activeSuggestionValue() : undefined
+      if (explicit) {
+        chooseSuggestion(explicit)
+        return
+      }
+      if (policy.includeFiles) {
+        const suggestion = activeSuggestionValue()
+        if (suggestion) chooseSuggestion(suggestion)
+        return
+      }
+      void submit()
     },
     Tab: complete,
   }
@@ -230,6 +238,12 @@ export function DialogSelectDirectoryV2(props: DialogSelectDirectoryV2Props) {
     if (!path) return
     props.onSelect(props.multiple ? [path] : path)
     dialog.close()
+  }
+
+  // Open the typed/pasted path directly, verifying it exists via navigate before resolving.
+  async function submit() {
+    await navigate(input())
+    resolve()
   }
 
   onMount(() => {
