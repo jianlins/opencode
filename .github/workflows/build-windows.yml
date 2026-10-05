@@ -21,9 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
+      - uses: ./.github/actions/setup-bun
 
       - name: Determine version
         id: version
@@ -36,19 +34,10 @@ jobs:
             echo "version=${PKG_VERSION}-fork.${SHORT_SHA}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Install dependencies
-        run: bun install
-
-      - name: Install cross-platform native modules
-        run: |
-          cd packages/opencode
-          bun install --os="*" --cpu="*" @opentui/core@$(bun -e "console.log(require('./package.json').dependencies['@opentui/core'])")
-          bun install --os="*" --cpu="*" @parcel/watcher@$(bun -e "console.log(require('./package.json').dependencies['@parcel/watcher'])")
-
       - name: Build all targets
         run: |
           cd packages/opencode
-          bun run script/build.ts --skip-install
+          bun run script/build.ts
         env:
           OPENCODE_VERSION: ${{ steps.version.outputs.version }}
 
