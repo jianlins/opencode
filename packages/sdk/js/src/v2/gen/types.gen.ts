@@ -7389,6 +7389,35 @@ export type GlobalUpgradeResponses = {
 
 export type GlobalUpgradeResponse = GlobalUpgradeResponses[keyof GlobalUpgradeResponses]
 
+export type GlobalDirectoryData = {
+  body?: never
+  path?: never
+  query: {
+    path: string
+  }
+  url: "/global/directory"
+}
+
+export type GlobalDirectoryErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type GlobalDirectoryError = GlobalDirectoryErrors[keyof GlobalDirectoryErrors]
+
+export type GlobalDirectoryResponses = {
+  /**
+   * Directory existence
+   */
+  200: {
+    exists: boolean
+  }
+}
+
+export type GlobalDirectoryResponse = GlobalDirectoryResponses[keyof GlobalDirectoryResponses]
+
 export type EventSubscribeData = {
   body?: never
   path?: never

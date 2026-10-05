@@ -1219,24 +1219,27 @@ export default function LegacyLayout(props: ParentProps) {
       return
     }
 
-    const fetched = latestRootSession(
-      await Promise.all(
-        dirs.map(async (item) => ({
-          path: { directory: item },
-          session: await listAllSessions(serverSDK().api.session, {
-            directory: item,
-            parentID: null,
-            order: "desc",
-          }).catch(() => []),
-        })),
-      ),
-      Date.now(),
-    )
-    if (fetched && (await openSession(fetched))) {
-      return
-    }
-
+    // Navigate immediately without waiting for remote session fetch
     navigateWithSidebarReset(`/${base64Encode(root)}/session`)
+
+    // Fetch sessions in background to populate the list on navigation
+    void Promise.all(
+      dirs.map(async (item) => ({
+        path: { directory: item },
+        session: await listAllSessions(serverSDK().api.session, {
+          directory: item,
+          parentID: null,
+          order: "desc",
+        }).catch(() => []),
+      })),
+    )
+      .then((fetched) => {
+        const result = latestRootSession(fetched, Date.now())
+        if (result) void openSession(result)
+      })
+      .catch(() => {
+        // Silently ignore errors in background fetch
+      })
   }
 
   function navigateToSession(session: Session | undefined) {

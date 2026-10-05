@@ -24,6 +24,8 @@ import {
   createDirectorySearch,
   currentPickerSuggestions,
   displayPickerPath,
+  nativePickerPath,
+  pickerDirectoryExists,
   pickerParent,
   pickerRoot,
 } from "./directory-picker-domain"
@@ -240,10 +242,19 @@ export function DialogSelectDirectoryV2(props: DialogSelectDirectoryV2Props) {
     dialog.close()
   }
 
-  // Open the typed/pasted path directly, verifying it exists via navigate before resolving.
+  // Open the typed/pasted path as soon as the server confirms it is a directory; otherwise browse to it.
   async function submit() {
+    const value = policy.navigation(
+      pickerAbsoluteInput(cleanPickerInput(input()), home(), root() || start() || home()),
+    )
+    if (!value) return
+    if (await pickerDirectoryExists(sdk, value)) {
+      const path = nativePickerPath(value)
+      props.onSelect(props.multiple ? [path] : path)
+      dialog.close()
+      return
+    }
     await navigate(input())
-    resolve()
   }
 
   onMount(() => {

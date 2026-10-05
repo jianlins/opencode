@@ -80,6 +80,8 @@ import type {
   GlobalConfigGetResponses,
   GlobalConfigUpdateErrors,
   GlobalConfigUpdateResponses,
+  GlobalDirectoryErrors,
+  GlobalDirectoryResponses,
   GlobalDisposeErrors,
   GlobalDisposeResponses,
   GlobalEventErrors,
@@ -1373,6 +1375,25 @@ export class Global extends HeyApiClient {
         ...options?.headers,
         ...params.headers,
       },
+    })
+  }
+
+  /**
+   * Check directory
+   *
+   * Check whether an absolute path is an existing directory without loading it as a project.
+   */
+  public directory<ThrowOnError extends boolean = false>(
+    parameters: {
+      path: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "path" }] }])
+    return (options?.client ?? this.client).get<GlobalDirectoryResponses, GlobalDirectoryErrors, ThrowOnError>({
+      url: "/global/directory",
+      ...options,
+      ...params,
     })
   }
 

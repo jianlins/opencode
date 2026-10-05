@@ -17,6 +17,7 @@ import {
   createDirectorySearch,
   createPriorityTaskQueue,
   displayPickerPath,
+  pickerDirectoryExists,
   pickerParent,
   pickerRoot,
   pickerAbsoluteInput,
@@ -235,6 +236,52 @@ test("searches from an absolute root without a default base", async () => {
 
   expect(await search("/")).toEqual(["/Users", "/tmp"])
   expect(directories).toEqual(["/"])
+})
+
+test("checks typed directories without listing them when the server supports it", async () => {
+  const paths: string[] = []
+  const sdk = {
+    protocol: Promise.resolve("v1"),
+    client: {
+      global: {
+        directory: (input: { path: string }) => {
+          paths.push(input.path)
+          return Promise.resolve({ data: { exists: input.path === "C:/repo" } })
+        },
+      },
+    },
+    api: {
+      file: {
+        list: () => Promise.reject(new Error("listing should not run when the directory route answers")),
+      },
+    },
+  } as unknown as Parameters<typeof pickerDirectoryExists>[0]
+
+  expect(await pickerDirectoryExists(sdk, "C:/repo")).toBeTrue()
+  expect(await pickerDirectoryExists(sdk, "C:/missing")).toBeFalse()
+  expect(paths).toEqual(["C:/repo", "C:/missing"])
+})
+
+test("falls back to listing when the directory route is unavailable", async () => {
+  const listed: string[] = []
+  const list = (input: { location?: { directory?: string } }) => {
+    listed.push(input.location?.directory ?? "")
+    return input.location?.directory === "/repo" ? Promise.resolve({ data: [] }) : Promise.reject(new Error("missing"))
+  }
+  const legacy = {
+    protocol: Promise.resolve("v1"),
+    // Older servers serve the web UI for unknown routes.
+    client: { global: { directory: () => Promise.resolve({ data: "<!doctype html>" }) } },
+    api: { file: { list } },
+  } as unknown as Parameters<typeof pickerDirectoryExists>[0]
+  const current = {
+    protocol: Promise.resolve("v2"),
+    api: { file: { list } },
+  } as unknown as Parameters<typeof pickerDirectoryExists>[0]
+
+  expect(await pickerDirectoryExists(legacy, "/repo")).toBeTrue()
+  expect(await pickerDirectoryExists(current, "/missing")).toBeFalse()
+  expect(listed).toEqual(["/repo", "/missing"])
 })
 
 test("identifies the next directory level to preload", () => {

@@ -3,6 +3,10 @@ import { describe, expect } from "bun:test"
 import { Context, Effect, Layer, Option } from "effect"
 import { HttpBody, HttpClient, HttpClientRequest, HttpRouter } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
+import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+import { FSUtil } from "@opencode-ai/core/fs-util"
+import os from "os"
+import path from "path"
 import { Auth } from "../../src/auth"
 import { Config } from "../../src/config/config"
 import { Installation } from "../../src/installation"
@@ -31,6 +35,7 @@ const apiLayer = HttpRouter.serve(
   Layer.provide(Layer.mock(Auth.Service)({})),
   Layer.provide(Layer.mock(Config.Service)({})),
   Layer.provide(Layer.mock(MoveSession.Service)({})),
+  Layer.provide(LayerNode.compile(FSUtil.node)),
   Layer.provide(
     Layer.mock(Installation.Service)({
       method: () => Effect.succeed("npm"),
@@ -43,6 +48,35 @@ const apiLayer = HttpRouter.serve(
 const it = testEffect(apiLayer)
 
 describe("global HttpApi", () => {
+  it.live("reports existing directories", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.get(GlobalPaths.directory).pipe(
+        HttpClientRequest.setUrlParam("path", os.tmpdir()),
+        HttpClient.execute,
+      )
+
+      expect(response.status).toBe(200)
+      expect(yield* response.json).toEqual({ exists: true })
+    }),
+  )
+
+  it.live("reports missing, file, and relative paths as not directories", () =>
+    Effect.gen(function* () {
+      const check = (value: string) =>
+        HttpClientRequest.get(GlobalPaths.directory).pipe(
+          HttpClientRequest.setUrlParam("path", value),
+          HttpClient.execute,
+          Effect.flatMap((response) => response.json),
+        )
+
+      expect(yield* check(path.join(os.tmpdir(), `missing-${Date.now()}-${Math.random()}`))).toEqual({
+        exists: false,
+      })
+      expect(yield* check(import.meta.filename)).toEqual({ exists: false })
+      expect(yield* check(".")).toEqual({ exists: false })
+    }),
+  )
+
   it.live("upgrades to the requested version", () =>
     Effect.gen(function* () {
       const response = yield* HttpClientRequest.post(GlobalPaths.upgrade).pipe(

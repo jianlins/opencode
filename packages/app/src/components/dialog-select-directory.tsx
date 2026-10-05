@@ -14,6 +14,7 @@ import {
   displayPickerPath,
   nativePickerPath,
   pickerAbsoluteInput,
+  pickerDirectoryExists,
   pickerRoot,
 } from "./directory-picker-domain"
 import type { Path } from "@opencode-ai/sdk/v2/client"
@@ -140,11 +141,7 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
     const cleaned = cleanPickerInput(value)
     if (!cleaned) return
     const absolute = pickerAbsoluteInput(cleaned, home(), start() ?? home())
-    const valid = await sdk.api.file
-      .list({ location: { directory: absolute } })
-      .then(() => true)
-      .catch(() => false)
-    if (!valid) return
+    if (!(await pickerDirectoryExists(sdk, absolute))) return
     resolve(nativePickerPath(absolute))
   }
 

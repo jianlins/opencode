@@ -65,12 +65,21 @@ const GlobalUpgradeResult = Schema.Union([
   }),
 ])
 
+export const GlobalDirectoryQuery = Schema.Struct({
+  path: Schema.String,
+})
+
+const GlobalDirectory = Schema.Struct({
+  exists: Schema.Boolean,
+})
+
 export const GlobalPaths = {
   health: "/global/health",
   event: "/global/event",
   config: "/global/config",
   dispose: "/global/dispose",
   upgrade: "/global/upgrade",
+  directory: "/global/directory",
 } as const
 
 export const GlobalApi = HttpApi.make("global").add(
@@ -132,6 +141,16 @@ export const GlobalApi = HttpApi.make("global").add(
           identifier: "global.upgrade",
           summary: "Upgrade opencode",
           description: "Upgrade opencode to the specified version.",
+        }),
+      ),
+      HttpApiEndpoint.get("directory", GlobalPaths.directory, {
+        query: GlobalDirectoryQuery,
+        success: described(GlobalDirectory, "Directory existence"),
+      }).annotateMerge(
+        OpenApi.annotations({
+          identifier: "global.directory",
+          summary: "Check directory",
+          description: "Check whether an absolute path is an existing directory without loading it as a project.",
         }),
       ),
     )

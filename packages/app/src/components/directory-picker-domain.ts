@@ -321,6 +321,18 @@ export function displayPickerPath(path: string, input: string, home: string) {
   return pickerTilde(value, home) || value
 }
 
+export async function pickerDirectoryExists(sdk: ServerSDK, directory: string) {
+  if ((await sdk.protocol) === "v1") {
+    const result = await sdk.client.global.directory({ path: directory }).catch(() => undefined)
+    // Older servers lack this route and may answer with the web UI instead of JSON.
+    if (typeof result?.data?.exists === "boolean") return result.data.exists
+  }
+  return sdk.api.file.list({ location: { directory } }).then(
+    () => true,
+    () => false,
+  )
+}
+
 export function createDirectorySearch(args: { sdk: ServerSDK; base: () => string | undefined; home: () => string }) {
   const cache = new Map<string, Promise<Array<{ name: string; absolute: string }>>>()
   let current = 0
